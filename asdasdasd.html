@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duyuru Detayları</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Yatay kaydırmayı engeller */
+        }
+        .announcement-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            max-width: 1200px; /* İçeriğin genişliğini sınırlandırır */
+            margin: 0 auto; /* İçeriği ortalar */
+        }
+        .announcement-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .announcement-content {
+            font-size: 1.2rem;
+            max-width: 100%;
+            margin-bottom: 20px;
+            text-align: justify;
+            overflow-wrap: break-word; /* Uzun metinlerde taşma olmasını engeller */
+        }
+        .announcement-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+            border-radius: 8px; /* Görseli daha estetik hale getirir */
+        }
+        .announcement-details-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        @media (max-width: 768px) {
+            .announcement-title {
+                font-size: 1.5rem;
+            }
+            .announcement-content {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="announcementDetails" class="announcement-container">
+        <!-- Duyuru detayları buraya eklenecek -->
+    </div>
+
+    <script>
+        // Duyuru detaylarını getiren fonksiyon
+        function getAnnouncementDetails(id) {
+            fetch(`http://localhost:8080/api/announcements/getAnnouncementById/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    const announcementDetails = document.getElementById('announcementDetails');
+                    
+                    // Duyuru başlığı
+                    const titleElement = document.createElement('h1');
+                    titleElement.classList.add('announcement-title');
+                    titleElement.textContent = data.data.title;
+                    
+                    // Duyuru içeriği
+                    const contentElement = document.createElement('div');
+                    contentElement.classList.add('announcement-content');
+                    contentElement.innerHTML = data.data.content;  // İçeriği HTML formatında ekliyoruz
+                    
+                    // Kapak resmi
+                    const imageElement = document.createElement('img');
+                    imageElement.classList.add('announcement-image');
+                    imageElement.src = data.data.coverImageUrl; // Resim URL'si
+                    imageElement.alt = 'Cover Image';
+                    
+                    // Detayları ekleyelim
+                    announcementDetails.appendChild(titleElement);
+                    announcementDetails.appendChild(imageElement);
+                    announcementDetails.appendChild(contentElement);
+                })
+                .catch(error => {
+                    console.error('Duyuru getirme hatası:', error);
+                });
+        }
+
+        // Sayfa yüklendiğinde duyuru detaylarını gösterelim (örnek olarak id: 1)
+        window.onload = function() {
+            const announcementId = 8; // Örnek bir duyuru ID
+            getAnnouncementDetails(announcementId); // Duyurunun ID'sine göre çağır
+        };
+    </script>
+
+</body>
+</html>

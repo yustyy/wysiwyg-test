@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Quill Editor - PDF ve Resim Yükleme</title>
+    <!-- Quill CSS -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <style>
+        #editor-container {
+            height: 300px;
+        }
+        /* PDF butonu için ikon ekleme */
+        .ql-pdf::before {
+            content: "\f1c1"; /* Font Awesome PDF ikonu */
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+        }
+    </style>
+    <!-- Font Awesome CSS (ikonlar için) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+</head>
+<body>
+
+    <h2>Quill WYSIWYG Editor (PDF ve Resim Yükleme ile)</h2>
+
+    <form id="announcementForm">
+        <input type="text" id="title" placeholder="Başlık"><br><br>
+        <!-- Cover Image Yükleme -->
+        <label for="coverImage">Kapak Resmi:</label>
+        <input type="file" id="coverImage"><br><br>
+
+        <!-- Quill Editör Alanı -->
+        <div id="editor-container"></div><br>
+        <button type="button" id="previewButton">Önizleme</button>
+        <button type="submit">Gönder</button>
+    </form>
+
+    <!-- Önizleme Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="previewTitle"></h2>
+            <div id="previewContent"></div>
+        </div>
+    </div>
+
+    <!-- Quill JS -->
+    <script src="https://cdn.quilljs.com/1.3.7/quill.js"></script>
+    <!-- Image Resize Modülü -->
+    <script src="https://cdn.jsdelivr.net/npm/quill-image-resize-module@3.0.0/image-resize.min.js"></script>
+
+    <script>
+        // Image Resize modülünü Quill'e kayıt ediyoruz
+        Quill.register('modules/imageResize', window.ImageResize.default);
+
+        // Quill editor'ü başlat
+        var quill = new Quill('#editor-container', {
+            theme: 'snow',
+            modules: {
+                toolbar: {
+                    container: [
+                        [{ 'header': [1, 2, false] }],
+                        ['bold', 'italic', 'underline'],
+                        ['link', 'blockquote', 'code-block'],
+                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                        [{ 'align': [] }],
+                        ['image', 'pdf'] // 'pdf' butonunu ekledik
+                    ],
+                    handlers: {
+                        image: imageHandler,
+                        pdf: pdfHandler // 'pdf' handler'ını ekledik
+                    }
+                },
+                imageResize: {}
+            }
+        });
+
+        // Fotoğraf yükleme işleyicisi
+        function imageHandler() {
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            input.setAttribute('accept', 'image/*');
+            input.click();
+
+            input.onchange = () => {
+                const file = input.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    // Fotoğrafı backend'e yükle ve URL'yi al
+                    fetch('http://localhost:8080/api/images/addImage', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Fotoğraf URL'sini Quill'e ekle
+                        const imageUrl = data.data.imageUrl;
+                        const range = quill.getSelection();
+                        quill.insertEmbed(range.index, 'image', imageUrl);
+                    })
+                    .catch(error => {
+                        console.error('Fotoğraf yükleme hatası:', error);
+                    });
+                }
+            };
+        }
+
+        // PDF yükleme işleyicisi
+        function pdfHandler() {
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            input.setAttribute('accept', 'application/pdf');
+            input.click();
+
+            input.onchange = () => {
+                const file = input.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('pdf', file);
+
+                    // PDF dosyasını backend'e yükle ve URL'yi al
+                    fetch('http://localhost:8080/api/pdfs/addPdf', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // PDF URL'sini editöre link olarak ekle
+                        const pdfUrl = data.data.url;
+                        const range = quill.getSelection();
+                        const linkText = file.name;
+                        quill.insertText(range.index, linkText, { link: pdfUrl });
+                    })
+                    .catch(error => {
+                        console.error('PDF yükleme hatası:', error);
+                    });
+                }
+            };
+        }
+
+        // Önizleme Modal İşlevleri
+        var modal = document.getElementById('previewModal');
+        var btn = document.getElementById('previewButton');
+        var span = document.getElementsByClassName('close')[0];
+
+        btn.onclick = function() {
+            // Başlık ve içerik al
+            const title = document.getElementById('title').value;
+            const content = quill.root.innerHTML;
+
+            // Önizleme alanlarına ekle
+            document.getElementById('previewTitle').innerText = title;
+            document.getElementById('previewContent').innerHTML = content;
+
+            // Modalı göster
+            modal.style.display = 'block';
+        }
+
+        // Modalı kapatma
+        span.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        // Modal dışında bir yere tıklanınca kapatma
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Form submit işlemi
+        document.getElementById('announcementForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Quill'den içerik al
+            const content = quill.root.innerHTML;
+
+            // Başlık ve dosyaları toplama
+            const title = document.getElementById('title').value;
+            const coverImage = document.getElementById('coverImage').files[0];
+
+            // AnnouncementDto nesnesi oluşturma
+            const announcementDto = {
+                id: 0, // Yeni bir duyuru oluşturduğumuz için id 0 veya null olabilir
+                title: title,
+                content: content
+            };
+
+            // FormData oluşturuyoruz
+            const formData = new FormData();
+            formData.append('data', new Blob([JSON.stringify(announcementDto)], { type: 'application/json' }));
+            if (coverImage) {
+                formData.append('coverImage', coverImage);
+            }
+
+            // Sunucuya POST isteği gönder
+            fetch('http://localhost:8080/api/announcements/addAnnouncement', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Duyuru başarıyla eklendi!');
+                console.log(data);
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+            });
+        });
+
+    </script>
+
+    <!-- Modal Stil Tanımları -->
+    <style>
+        /* Modal stil tanımları */
+        .modal {
+            display: none; /* Başlangıçta gizli */
+            position: fixed;
+            z-index: 1;
+            padding-top: 60px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4); /* Siyah yarı saydam arka plan */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+
+</body>
+</html>
